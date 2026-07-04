@@ -77,7 +77,7 @@ class CardController extends Controller
             $oldOrder = $card->order;
 
             if ($sourceListId == $targetListId) {
-                // Moving within same list
+
                 if ($oldOrder < $newOrder) {
                     Card::where('board_list_id', $sourceListId)
                         ->whereBetween('order', [$oldOrder + 1, $newOrder])
@@ -90,8 +90,7 @@ class CardController extends Controller
                 $card->order = $newOrder;
                 $card->save();
             } else {
-                // Moving between lists
-                // Shift down elements in target list to make space
+
                 Card::where('board_list_id', $targetListId)
                     ->where('order', '>=', $newOrder)
                     ->increment('order');
@@ -100,7 +99,6 @@ class CardController extends Controller
                 $card->order = $newOrder;
                 $card->save();
 
-                // Shift up elements in source list to close the gap
                 Card::where('board_list_id', $sourceListId)
                     ->where('order', '>', $oldOrder)
                     ->decrement('order');

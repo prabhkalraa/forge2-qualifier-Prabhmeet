@@ -21,7 +21,6 @@ class BoardController extends Controller
 
         $board = Board::create($validated);
 
-        // Pre-create default columns for new boards: To Do, Doing, Done
         $board->lists()->create(['name' => 'To Do', 'order' => 0]);
         $board->lists()->create(['name' => 'Doing', 'order' => 1]);
         $board->lists()->create(['name' => 'Done', 'order' => 2]);
@@ -55,5 +54,11 @@ class BoardController extends Controller
         $board->members()->syncWithoutDetaching([$validated['member_id']]);
 
         return response()->json($board->load('members'));
+    }
+
+    public function destroy(Board $board)
+    {
+        $board->delete();
+        return response()->json(null, 204);
     }
 }
