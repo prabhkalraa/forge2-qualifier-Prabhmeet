@@ -7,26 +7,23 @@ use App\Http\Controllers\CardController;
 use App\Http\Controllers\MemberController;
 use App\Http\Controllers\TagController;
 
-// API Routes
 Route::prefix('api')->group(function () {
-    // Boards
+
     Route::get('/boards', [BoardController::class, 'index']);
     Route::post('/boards', [BoardController::class, 'store']);
     Route::get('/boards/{board}', [BoardController::class, 'show']);
     Route::post('/boards/{board}/members', [BoardController::class, 'addMember']);
+    Route::delete('/boards/{board}', [BoardController::class, 'destroy']);
 
-    // Lists
     Route::post('/lists', [BoardListController::class, 'store']);
     Route::put('/lists/{list}', [BoardListController::class, 'update']);
     Route::delete('/lists/{list}', [BoardListController::class, 'destroy']);
 
-    // Cards
     Route::post('/cards', [CardController::class, 'store']);
     Route::put('/cards/{card}', [CardController::class, 'update']);
     Route::delete('/cards/{card}', [CardController::class, 'destroy']);
     Route::put('/cards/reorder', [CardController::class, 'reorder']);
 
-    // Members & Tags
     Route::get('/members', [MemberController::class, 'index']);
     Route::post('/members', [MemberController::class, 'store']);
     Route::get('/tags', [TagController::class, 'index']);

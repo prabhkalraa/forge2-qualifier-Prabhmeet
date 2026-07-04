@@ -8,30 +8,25 @@ export default function App() {
     const [tags, setTags] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    // Modal States
     const [editingCard, setEditingCard] = useState(null);
     const [showBoardModal, setShowBoardModal] = useState(false);
     const [showMemberModal, setShowMemberModal] = useState(false);
     const [showTagModal, setShowTagModal] = useState(false);
 
-    // Form inputs
     const [newBoard, setNewBoard] = useState({ name: '', description: '' });
     const [newMember, setNewMember] = useState({ name: '', email: '' });
     const [newTag, setNewTag] = useState({ name: '', color: '#3b82f6' });
-    const [newListNames, setNewListNames] = useState({}); // board_id -> list name input
-    const [newCardTitles, setNewCardTitles] = useState({}); // list_id -> card title input
+    const [newListNames, setNewListNames] = useState({}); 
+    const [newCardTitles, setNewCardTitles] = useState({}); 
 
-    // Drag and Drop States
     const [draggedCardId, setDraggedCardId] = useState(null);
 
-    // Initial Load
     useEffect(() => {
         fetchBoards();
         fetchMembers();
         fetchTags();
     }, []);
 
-    // Load active board details
     useEffect(() => {
         if (activeBoardId) {
             fetchBoardDetails(activeBoardId);
@@ -45,9 +40,10 @@ export default function App() {
             const res = await apiFetch('/api/boards');
             const data = await res.json();
             setBoards(data);
-            setLoading(false);
         } catch (e) {
             console.error('Error fetching boards:', e);
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -81,7 +77,6 @@ export default function App() {
         }
     };
 
-    // Board actions
     const handleCreateBoard = async (e) => {
         e.preventDefault();
         if (!newBoard.name.trim()) return;
@@ -101,6 +96,20 @@ export default function App() {
         }
     };
 
+    const handleDeleteBoard = async (e, boardId) => {
+        e.stopPropagation();
+        if (!confirm('Are you sure you want to delete this board? All lists and cards will be permanently deleted.')) return;
+        try {
+            await apiFetch(`/api/boards/${boardId}`, { method: 'DELETE' });
+            setBoards(boards.filter(b => b.id !== boardId));
+            if (activeBoardId === boardId) {
+                setActiveBoardId(null);
+            }
+        } catch (e) {
+            console.error('Error deleting board:', e);
+        }
+    };
+
     const handleAddBoardMember = async (memberId) => {
         if (!boardDetails) return;
         try {
@@ -116,7 +125,6 @@ export default function App() {
         }
     };
 
-    // List actions
     const handleCreateList = async (boardId) => {
         const name = newListNames[boardId];
         if (!name || !name.trim()) return;
@@ -150,7 +158,6 @@ export default function App() {
         }
     };
 
-    // Card actions
     const handleCreateCard = async (listId) => {
         const title = newCardTitles[listId];
         if (!title || !title.trim()) return;
@@ -162,7 +169,6 @@ export default function App() {
             });
             const data = await res.json();
 
-            // Insert into the UI state
             const updatedLists = boardDetails.lists.map(list => {
                 if (list.id === listId) {
                     return { ...list, cards: [...list.cards, data] };
@@ -185,7 +191,6 @@ export default function App() {
             });
             const data = await res.json();
 
-            // Refresh board details
             fetchBoardDetails(boardDetails.id);
             setEditingCard(data);
         } catch (e) {
@@ -211,7 +216,6 @@ export default function App() {
         }
     };
 
-    // Member creation
     const handleCreateMember = async (e) => {
         e.preventDefault();
         if (!newMember.name.trim() || !newMember.email.trim()) return;
@@ -230,7 +234,6 @@ export default function App() {
         }
     };
 
-    // Tag creation
     const handleCreateTag = async (e) => {
         e.preventDefault();
         if (!newTag.name.trim()) return;
@@ -249,7 +252,6 @@ export default function App() {
         }
     };
 
-    // HTML5 Native Drag & Drop Handlers
     const handleDragStart = (e, cardId) => {
         setDraggedCardId(cardId);
         e.dataTransfer.setData('text/plain', cardId.toString());
@@ -269,11 +271,9 @@ export default function App() {
         const cardId = parseInt(e.dataTransfer.getData('text/plain') || draggedCardId);
         if (!cardId) return;
 
-        // Find the card to update UI state immediately (optimistic update)
         let foundCard = null;
         const currentLists = [...boardDetails.lists];
 
-        // Locate card and remove it from its source list
         const updatedLists = currentLists.map(list => {
             const cardIndex = list.cards.findIndex(c => c.id === cardId);
             if (cardIndex !== -1) {
@@ -287,7 +287,6 @@ export default function App() {
 
         if (!foundCard) return;
 
-        // Add card to target list
         const finalLists = updatedLists.map(list => {
             if (list.id === targetListId) {
                 const newCards = [...list.cards, foundCard];
@@ -296,10 +295,8 @@ export default function App() {
             return list;
         });
 
-        // Set state optimistically
         setBoardDetails({ ...boardDetails, lists: finalLists });
 
-        // Persist to server
         const targetList = finalLists.find(l => l.id === targetListId);
         const newOrder = targetList ? targetList.cards.length - 1 : 0;
 
@@ -313,7 +310,7 @@ export default function App() {
                     order: newOrder
                 })
             });
-            // Fetch fresh state to sync orders perfectly
+
             fetchBoardDetails(boardDetails.id);
         } catch (e) {
             console.error('Error saving reorder state:', e);
@@ -322,7 +319,6 @@ export default function App() {
         setDraggedCardId(null);
     };
 
-    // Overdue Helper
     const isOverdue = (dateStr) => {
         if (!dateStr) return false;
         const date = new Date(dateStr);
@@ -338,16 +334,16 @@ export default function App() {
 
     return (
         <div className="flex flex-col min-h-screen">
-            {/* Header Dashboard Nav */}
-            <header className="navbar flex justify-between items-center px-6 py-4 bg-slate-800 border-b border-slate-700">
+
+            <header className="navbar flex justify-between items-center px-6 py-4 bg-transparent border-b border-gray-200">
                 <div className="flex items-center gap-4">
-                    <span className="text-xl font-bold tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-400">
-                        ClawBoard 🦀
+                    <span className="text-xl font-bold tracking-wide text-black">
+                        Kanban Board
                     </span>
                     {activeBoardId && (
                         <button
                             onClick={() => setActiveBoardId(null)}
-                            className="text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded transition-colors text-slate-300"
+                            className="text-xs bg-black hover:bg-gray-800 px-3 py-1 rounded transition-colors text-white font-semibold"
                         >
                             ← Back to Boards
                         </button>
@@ -356,76 +352,93 @@ export default function App() {
                 <div className="flex items-center gap-3">
                     <button
                         onClick={() => setShowMemberModal(true)}
-                        className="text-xs bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 rounded font-semibold transition-transform hover:scale-105"
+                        className="text-xs bg-black hover:bg-gray-800 px-3 py-1.5 rounded text-white text-white font-semibold transition-transform hover:scale-105"
                     >
                         + Add Member
                     </button>
                     <button
                         onClick={() => setShowTagModal(true)}
-                        className="text-xs bg-emerald-600 hover:bg-emerald-500 px-3 py-1.5 rounded font-semibold transition-transform hover:scale-105"
+                        className="text-xs bg-white border border-gray-300 text-black hover:bg-gray-100 px-3 py-1.5 rounded font-semibold transition-transform hover:scale-105"
                     >
                         + Add Tag
                     </button>
                 </div>
             </header>
 
-            {/* Main Workspace Area */}
             <main className="flex-1 p-6 overflow-x-auto">
                 {loading ? (
                     <div className="flex justify-center items-center h-64">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-400"></div>
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-400"></div>
                     </div>
                 ) : !activeBoardId ? (
-                    /* Boards List View */
+
                     <div className="max-w-6xl mx-auto">
-                        <h2 className="text-2xl font-semibold mb-6 text-slate-200">Your Boards</h2>
+                        <h2 className="text-2xl font-semibold mb-6 text-black">Your Boards</h2>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             {boards.map(board => (
                                 <div
                                     key={board.id}
                                     onClick={() => setActiveBoardId(board.id)}
-                                    className="board-card bg-slate-800 hover:bg-slate-750 p-6 rounded-lg border border-slate-700 hover:border-slate-500 cursor-pointer transition-all shadow-md group"
+                                    className="board-card bg-gray-50 hover:bg-gray-100 p-6 rounded-lg border border-gray-200 hover:border-gray-400 cursor-pointer transition-all shadow-md group"
                                 >
-                                    <h3 className="text-lg font-bold group-hover:text-indigo-300 transition-colors">
-                                        {board.name}
-                                    </h3>
-                                    <p className="text-sm text-slate-400 mt-2 h-12 overflow-hidden text-ellipsis line-clamp-2">
+                                    <div className="flex justify-between items-start">
+                                        <h3 className="text-lg font-bold group-hover:text-black transition-colors">
+                                            {board.name}
+                                        </h3>
+                                        <button 
+                                            onClick={(e) => handleDeleteBoard(e, board.id)}
+                                            className="text-gray-400 hover:text-rose-500 transition-colors p-1"
+                                            title="Delete Board"
+                                        >
+                                            ✕
+                                        </button>
+                                    </div>
+                                    <p className="text-sm text-gray-600 mt-2 h-12 overflow-hidden text-ellipsis line-clamp-2">
                                         {board.description || 'No description provided.'}
                                     </p>
-                                    <div className="flex justify-between items-center mt-4 pt-4 border-t border-slate-700 text-xs text-slate-500">
+                                    <div className="flex justify-between items-center mt-4 pt-4 border-t border-gray-200 text-xs text-gray-500">
                                         <span>{board.lists_count || 0} lists</span>
-                                        <span className="text-indigo-400 group-hover:underline">Open Board →</span>
+                                        <span className="text-black group-hover:underline">Open Board →</span>
                                     </div>
                                 </div>
                             ))}
-                            {/* Create Board Button Card */}
+
                             <div
                                 onClick={() => setShowBoardModal(true)}
-                                className="board-card flex flex-col justify-center items-center p-6 rounded-lg border border-dashed border-slate-600 hover:border-indigo-500 cursor-pointer hover:bg-slate-800/40 transition-all min-h-[160px]"
+                                className="board-card flex flex-col justify-center items-center p-6 rounded-lg border border-dashed border-gray-300 hover:border-purple-500 cursor-pointer hover:bg-gray-50/40 transition-all min-h-[160px]"
                             >
-                                <span className="text-3xl text-slate-500">+</span>
-                                <span className="text-sm font-semibold text-slate-400 mt-2">Create New Board</span>
+                                <span className="text-3xl text-gray-500">+</span>
+                                <span className="text-sm font-semibold text-gray-600 mt-2">Create New Board</span>
                             </div>
                         </div>
                     </div>
                 ) : (
-                    /* Active Board Details Kanban View */
+
                     boardDetails && (
                         <div className="h-full flex flex-col">
-                            {/* Board Header Details */}
+
                             <div className="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                                 <div>
-                                    <h2 className="text-2xl font-bold text-slate-100">{boardDetails.name}</h2>
-                                    <p className="text-sm text-slate-400 max-w-2xl">{boardDetails.description}</p>
+                                    <div className="flex items-center gap-3">
+                                        <h2 className="text-2xl font-bold text-black">{boardDetails.name}</h2>
+                                        <button 
+                                            onClick={(e) => handleDeleteBoard(e, boardDetails.id)}
+                                            className="text-xs text-rose-400 hover:text-white hover:bg-rose-500 transition-colors px-2 py-1 bg-rose-500/10 border border-rose-500/20 rounded"
+                                            title="Delete Board"
+                                        >
+                                            Delete Board
+                                        </button>
+                                    </div>
+                                    <p className="text-sm text-gray-600 max-w-2xl mt-1">{boardDetails.description}</p>
                                 </div>
-                                {/* Board Assignees List */}
+
                                 <div className="flex items-center gap-3">
                                     <div className="flex -space-x-2 overflow-hidden">
                                         {boardDetails.members && boardDetails.members.map(m => (
                                             <div
                                                 key={m.id}
                                                 title={`${m.name} (${m.email})`}
-                                                className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-indigo-500 text-white text-xs font-bold border-2 border-slate-900 shadow"
+                                                className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-black text-white text-xs font-bold border-2 border-white shadow"
                                             >
                                                 {m.name.charAt(0)}
                                             </div>
@@ -436,7 +449,7 @@ export default function App() {
                                             if (e.target.value) handleAddBoardMember(e.target.value);
                                             e.target.value = '';
                                         }}
-                                        className="text-xs bg-slate-800 text-slate-200 border border-slate-700 px-2 py-1.5 rounded"
+                                        className="text-xs bg-gray-50 text-black border border-gray-200 px-2 py-1.5 rounded"
                                     >
                                         <option value="">+ Invite Member</option>
                                         {members
@@ -449,29 +462,27 @@ export default function App() {
                                 </div>
                             </div>
 
-                            {/* Kanban Grid Container */}
                             <div className="flex gap-6 items-start">
                                 {boardDetails.lists && boardDetails.lists.map(list => (
                                     <div
                                         key={list.id}
                                         onDragOver={handleDragOver}
                                         onDrop={(e) => handleDrop(e, list.id)}
-                                        className="kanban-column bg-slate-850/80 backdrop-blur w-72 shrink-0 p-4 rounded-lg border border-slate-800 flex flex-col max-h-[75vh]"
+                                        className="kanban-column bg-gray-50 backdrop-blur w-72 shrink-0 p-4 rounded-lg border border-gray-200 flex flex-col max-h-[75vh]"
                                     >
-                                        {/* Column Header */}
+
                                         <div className="flex justify-between items-center mb-3">
-                                            <h4 className="font-bold text-slate-200 text-sm tracking-wide uppercase">
+                                            <h4 className="font-bold text-black text-sm tracking-wide uppercase">
                                                 {list.name}
                                             </h4>
                                             <button
                                                 onClick={() => handleDeleteList(list.id)}
-                                                className="text-slate-500 hover:text-rose-400 text-xs transition-colors"
+                                                className="text-gray-500 hover:text-rose-400 text-xs transition-colors"
                                             >
                                                 ✕
                                             </button>
                                         </div>
 
-                                        {/* Column Cards Wrapper */}
                                         <div className="flex-1 overflow-y-auto space-y-3 pr-1 max-h-[50vh]">
                                             {list.cards && list.cards.map(card => (
                                                 <div
@@ -480,14 +491,14 @@ export default function App() {
                                                     onDragStart={(e) => handleDragStart(e, card.id)}
                                                     onDragEnd={handleDragEnd}
                                                     onClick={() => setEditingCard(card)}
-                                                    className="kanban-card bg-slate-800 hover:bg-slate-750 p-4 rounded border border-slate-700 hover:border-slate-500 cursor-grab active:cursor-grabbing transition-all shadow-sm relative group"
+                                                    className="kanban-card bg-gray-50 hover:bg-gray-100 p-4 rounded border border-gray-200 hover:border-gray-400 cursor-grab active:cursor-grabbing transition-all shadow-sm relative group"
                                                 >
-                                                    {/* Card Tags */}
+
                                                     <div className="flex flex-wrap gap-1 mb-2">
                                                         {card.tags && card.tags.map(t => (
                                                             <span
                                                                 key={t.id}
-                                                                className="text-[10px] px-2 py-0.5 rounded font-bold uppercase text-white tracking-wider"
+                                                                className="text-[10px] px-2 py-0.5 rounded font-bold uppercase text-black tracking-wider"
                                                                 style={{ backgroundColor: t.color }}
                                                             >
                                                                 {t.name}
@@ -495,19 +506,18 @@ export default function App() {
                                                         ))}
                                                     </div>
 
-                                                    <h5 className="font-semibold text-sm text-slate-100 mb-2">
+                                                    <h5 className="font-semibold text-sm text-black mb-2">
                                                         {card.title}
                                                     </h5>
 
-                                                    {/* Card Meta footer */}
-                                                    <div className="flex justify-between items-center mt-3 pt-2 border-t border-slate-700/50 text-[11px] text-slate-400">
-                                                        {/* Due Date Indicator */}
+                                                    <div className="flex justify-between items-center mt-3 pt-2 border-t border-gray-200/50 text-[11px] text-gray-600">
+
                                                         {card.due_date ? (
                                                             <span
                                                                 className={`px-1.5 py-0.5 rounded font-semibold ${
                                                                     isOverdue(card.due_date)
                                                                         ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
-                                                                        : 'bg-slate-700 text-slate-300'
+                                                                        : 'bg-slate-700 text-black'
                                                                 }`}
                                                             >
                                                                 📅 {formatDueDate(card.due_date)}
@@ -517,54 +527,51 @@ export default function App() {
                                                             <span></span>
                                                         )}
 
-                                                        {/* Assignee Badge */}
                                                         {card.member ? (
                                                             <div
                                                                 title={`Assigned to ${card.member.name}`}
-                                                                className="w-5.5 h-5.5 rounded-full bg-indigo-500 text-white flex items-center justify-center font-bold text-[10px]"
+                                                                className="w-5.5 h-5.5 rounded-full bg-black text-white flex items-center justify-center font-bold text-[10px]"
                                                             >
                                                                 {card.member.name.charAt(0)}
                                                             </div>
                                                         ) : (
-                                                            <span className="text-[10px] text-slate-500 italic">Unassigned</span>
+                                                            <span className="text-[10px] text-gray-500 italic">Unassigned</span>
                                                         )}
                                                     </div>
                                                 </div>
                                             ))}
                                             {list.cards?.length === 0 && (
-                                                <div className="text-center text-xs text-slate-500 py-6 border border-dashed border-slate-800 rounded">
+                                                <div className="text-center text-xs text-gray-500 py-6 border border-dashed border-gray-200 rounded">
                                                     Drop cards here
                                                 </div>
                                             )}
                                         </div>
 
-                                        {/* Column Quick Add Card */}
-                                        <div className="mt-4 pt-3 border-t border-slate-800/80">
+                                        <div className="mt-4 pt-3 border-t border-gray-200/80">
                                             <input
                                                 type="text"
                                                 placeholder="+ Add card..."
                                                 value={newCardTitles[list.id] || ''}
                                                 onChange={(e) => setNewCardTitles({ ...newCardTitles, [list.id]: e.target.value })}
                                                 onKeyDown={(e) => { if (e.key === 'Enter') handleCreateCard(list.id); }}
-                                                className="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                                                className="w-full bg-gray-50 border border-gray-200 rounded px-2.5 py-1.5 text-xs text-black placeholder-slate-500 focus:outline-none focus:border-black"
                                             />
                                         </div>
                                     </div>
                                 ))}
 
-                                {/* Add New List Input Column */}
-                                <div className="kanban-column bg-slate-850/30 w-72 shrink-0 p-4 rounded-lg border border-dashed border-slate-800 flex flex-col">
+                                <div className="kanban-column bg-gray-50 w-72 shrink-0 p-4 rounded-lg border border-dashed border-gray-200 flex flex-col">
                                     <input
                                         type="text"
                                         placeholder="+ Add new list column..."
                                         value={newListNames[boardDetails.id] || ''}
                                         onChange={(e) => setNewListNames({ ...newListNames, [boardDetails.id]: e.target.value })}
                                         onKeyDown={(e) => { if (e.key === 'Enter') handleCreateList(boardDetails.id); }}
-                                        className="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                                        className="w-full bg-gray-50 border border-gray-200 rounded px-2.5 py-1.5 text-xs text-black placeholder-slate-500 focus:outline-none focus:border-black"
                                     />
                                     <button
                                         onClick={() => handleCreateList(boardDetails.id)}
-                                        className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold py-1.5 rounded mt-2 transition-colors"
+                                        className="text-xs bg-gray-50 hover:bg-slate-700 text-white font-semibold py-1.5 rounded mt-2 transition-colors"
                                     >
                                         Create List
                                     </button>
@@ -575,41 +582,40 @@ export default function App() {
                 )}
             </main>
 
-            {/* Modal: Create Board */}
             {showBoardModal && (
                 <div className="modal-backdrop fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex justify-center items-center z-50">
-                    <div className="modal-content bg-slate-850 border border-slate-700 w-full max-w-md p-6 rounded-lg shadow-xl relative animate-fade-in">
+                    <div className="modal-content bg-white border border-gray-200 w-full max-w-md p-6 rounded-lg shadow-xl relative animate-fade-in">
                         <button
                             onClick={() => setShowBoardModal(false)}
-                            className="absolute top-4 right-4 text-slate-400 hover:text-slate-200"
+                            className="absolute top-4 right-4 text-gray-600 hover:text-black"
                         >
                             ✕
                         </button>
-                        <h3 className="text-lg font-bold text-slate-100 mb-4">Create New Board</h3>
+                        <h3 className="text-lg font-bold text-black mb-4">Create New Board</h3>
                         <form onSubmit={handleCreateBoard} className="space-y-4">
                             <div>
-                                <label className="block text-xs font-semibold text-slate-400 uppercase mb-1">Board Name</label>
+                                <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">Board Name</label>
                                 <input
                                     type="text"
                                     required
                                     value={newBoard.name}
                                     onChange={(e) => setNewBoard({ ...newBoard, name: e.target.value })}
-                                    className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500"
+                                    className="w-full bg-gray-50 border border-gray-200 rounded px-3 py-2 text-sm text-black focus:outline-none focus:border-black"
                                     placeholder="Engineering Sprint, Vacation Planner..."
                                 />
                             </div>
                             <div>
-                                <label className="block text-xs font-semibold text-slate-400 uppercase mb-1">Description (Optional)</label>
+                                <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">Description (Optional)</label>
                                 <textarea
                                     value={newBoard.description}
                                     onChange={(e) => setNewBoard({ ...newBoard, description: e.target.value })}
-                                    className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 h-24 resize-none"
+                                    className="w-full bg-gray-50 border border-gray-200 rounded px-3 py-2 text-sm text-black focus:outline-none focus:border-black h-24 resize-none"
                                     placeholder="Explain the purpose of this board..."
                                 />
                             </div>
                             <button
                                 type="submit"
-                                className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2 rounded text-sm transition-transform hover:scale-102"
+                                className="w-full bg-black hover:bg-gray-800 text-white font-semibold py-2 rounded text-sm transition-transform hover:scale-102"
                             >
                                 Create Board
                             </button>
@@ -618,43 +624,42 @@ export default function App() {
                 </div>
             )}
 
-            {/* Modal: Add Global Member */}
             {showMemberModal && (
                 <div className="modal-backdrop fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex justify-center items-center z-50">
-                    <div className="modal-content bg-slate-850 border border-slate-700 w-full max-w-md p-6 rounded-lg shadow-xl relative">
+                    <div className="modal-content bg-white border border-gray-200 w-full max-w-md p-6 rounded-lg shadow-xl relative">
                         <button
                             onClick={() => setShowMemberModal(false)}
-                            className="absolute top-4 right-4 text-slate-400 hover:text-slate-200"
+                            className="absolute top-4 right-4 text-gray-600 hover:text-black"
                         >
                             ✕
                         </button>
-                        <h3 className="text-lg font-bold text-slate-100 mb-4">Add Global Member</h3>
+                        <h3 className="text-lg font-bold text-black mb-4">Add Global Member</h3>
                         <form onSubmit={handleCreateMember} className="space-y-4">
                             <div>
-                                <label className="block text-xs font-semibold text-slate-400 uppercase mb-1">Full Name</label>
+                                <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">Full Name</label>
                                 <input
                                     type="text"
                                     required
                                     value={newMember.name}
                                     onChange={(e) => setNewMember({ ...newMember, name: e.target.value })}
-                                    className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500"
+                                    className="w-full bg-gray-50 border border-gray-200 rounded px-3 py-2 text-sm text-black focus:outline-none focus:border-black"
                                     placeholder="John Doe"
                                 />
                             </div>
                             <div>
-                                <label className="block text-xs font-semibold text-slate-400 uppercase mb-1">Email Address</label>
+                                <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">Email Address</label>
                                 <input
                                     type="email"
                                     required
                                     value={newMember.email}
                                     onChange={(e) => setNewMember({ ...newMember, email: e.target.value })}
-                                    className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500"
+                                    className="w-full bg-gray-50 border border-gray-200 rounded px-3 py-2 text-sm text-black focus:outline-none focus:border-black"
                                     placeholder="john@example.com"
                                 />
                             </div>
                             <button
                                 type="submit"
-                                className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2 rounded text-sm transition-colors"
+                                className="w-full bg-black hover:bg-gray-800 text-white font-semibold py-2 rounded text-sm transition-colors"
                             >
                                 Add Member
                             </button>
@@ -663,31 +668,30 @@ export default function App() {
                 </div>
             )}
 
-            {/* Modal: Add Global Tag */}
             {showTagModal && (
                 <div className="modal-backdrop fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex justify-center items-center z-50">
-                    <div className="modal-content bg-slate-850 border border-slate-700 w-full max-w-md p-6 rounded-lg shadow-xl relative">
+                    <div className="modal-content bg-white border border-gray-200 w-full max-w-md p-6 rounded-lg shadow-xl relative">
                         <button
                             onClick={() => setShowTagModal(false)}
-                            className="absolute top-4 right-4 text-slate-400 hover:text-slate-200"
+                            className="absolute top-4 right-4 text-gray-600 hover:text-black"
                         >
                             ✕
                         </button>
-                        <h3 className="text-lg font-bold text-slate-100 mb-4">Create Global Label Tag</h3>
+                        <h3 className="text-lg font-bold text-black mb-4">Create Global Label Tag</h3>
                         <form onSubmit={handleCreateTag} className="space-y-4">
                             <div>
-                                <label className="block text-xs font-semibold text-slate-400 uppercase mb-1">Tag Label Name</label>
+                                <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">Tag Label Name</label>
                                 <input
                                     type="text"
                                     required
                                     value={newTag.name}
                                     onChange={(e) => setNewTag({ ...newTag, name: e.target.value })}
-                                    className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500"
+                                    className="w-full bg-gray-50 border border-gray-200 rounded px-3 py-2 text-sm text-black focus:outline-none focus:border-black"
                                     placeholder="Bug, Design, Optimization..."
                                 />
                             </div>
                             <div>
-                                <label className="block text-xs font-semibold text-slate-400 uppercase mb-1">Label Tag Color</label>
+                                <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">Label Tag Color</label>
                                 <div className="flex gap-3 items-center">
                                     <input
                                         type="color"
@@ -695,7 +699,7 @@ export default function App() {
                                         onChange={(e) => setNewTag({ ...newTag, color: e.target.value })}
                                         className="w-12 h-10 bg-transparent border-0 cursor-pointer"
                                     />
-                                    <span className="text-xs text-slate-400 font-mono">{newTag.color}</span>
+                                    <span className="text-xs text-gray-600 font-mono">{newTag.color}</span>
                                 </div>
                             </div>
                             <button
@@ -709,13 +713,12 @@ export default function App() {
                 </div>
             )}
 
-            {/* Modal: Card Details & Editing */}
             {editingCard && (
                 <div className="modal-backdrop fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex justify-center items-center z-50">
-                    <div className="modal-content bg-slate-850 border border-slate-700 w-full max-w-xl p-6 rounded-lg shadow-xl relative animate-scale-up">
+                    <div className="modal-content bg-white border border-gray-200 w-full max-w-xl p-6 rounded-lg shadow-xl relative animate-scale-up">
                         <button
                             onClick={() => setEditingCard(null)}
-                            className="absolute top-4 right-4 text-slate-400 hover:text-slate-200"
+                            className="absolute top-4 right-4 text-gray-600 hover:text-black"
                         >
                             ✕
                         </button>
@@ -723,7 +726,7 @@ export default function App() {
                         <div className="mb-4">
                             <input
                                 type="text"
-                                className="w-full bg-transparent border-0 font-bold text-xl text-slate-100 focus:outline-none focus:bg-slate-900 px-2 py-1 rounded"
+                                className="w-full bg-transparent border-0 font-bold text-xl text-black focus:outline-none focus:bg-gray-50 px-2 py-1 rounded"
                                 defaultValue={editingCard.title}
                                 onBlur={(e) => {
                                     if (e.target.value.trim() && e.target.value !== editingCard.title) {
@@ -734,12 +737,12 @@ export default function App() {
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            {/* Card Edit Form Fields */}
+
                             <div className="md:col-span-2 space-y-4">
                                 <div>
-                                    <label className="block text-xs font-semibold text-slate-400 uppercase mb-1">Description</label>
+                                    <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">Description</label>
                                     <textarea
-                                        className="w-full bg-slate-900 border border-slate-700 rounded p-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 h-32 resize-none"
+                                        className="w-full bg-gray-50 border border-gray-200 rounded p-2.5 text-sm text-black focus:outline-none focus:border-black h-32 resize-none"
                                         placeholder="Add a detailed description..."
                                         defaultValue={editingCard.description || ''}
                                         onBlur={(e) => {
@@ -751,13 +754,12 @@ export default function App() {
                                 </div>
                             </div>
 
-                            {/* Sidebar Options */}
-                            <div className="space-y-4 border-l border-slate-700/50 pl-0 md:pl-4">
-                                {/* Assignee Select */}
+                            <div className="space-y-4 border-l border-gray-200/50 pl-0 md:pl-4">
+
                                 <div>
-                                    <label className="block text-[11px] font-semibold text-slate-400 uppercase mb-1">Assignee</label>
+                                    <label className="block text-[11px] font-semibold text-gray-600 uppercase mb-1">Assignee</label>
                                     <select
-                                        className="w-full bg-slate-900 border border-slate-700 rounded text-xs px-2.5 py-1.5 text-slate-200"
+                                        className="w-full bg-gray-50 border border-gray-200 rounded text-xs px-2.5 py-1.5 text-black"
                                         value={editingCard.member_id || ''}
                                         onChange={(e) => {
                                             const val = e.target.value ? parseInt(e.target.value) : null;
@@ -771,12 +773,11 @@ export default function App() {
                                     </select>
                                 </div>
 
-                                {/* Due Date Input */}
                                 <div>
-                                    <label className="block text-[11px] font-semibold text-slate-400 uppercase mb-1">Due Date</label>
+                                    <label className="block text-[11px] font-semibold text-gray-600 uppercase mb-1">Due Date</label>
                                     <input
                                         type="date"
-                                        className="w-full bg-slate-900 border border-slate-700 rounded text-xs px-2.5 py-1.5 text-slate-200 focus:outline-none"
+                                        className="w-full bg-gray-50 border border-gray-200 rounded text-xs px-2.5 py-1.5 text-black focus:outline-none"
                                         value={editingCard.due_date ? editingCard.due_date.substring(0, 10) : ''}
                                         onChange={(e) => {
                                             const val = e.target.value ? e.target.value + ' 12:00:00' : null;
@@ -785,10 +786,9 @@ export default function App() {
                                     />
                                 </div>
 
-                                {/* Tags Picker */}
                                 <div>
-                                    <label className="block text-[11px] font-semibold text-slate-400 uppercase mb-1">Labels/Tags</label>
-                                    <div className="flex flex-col gap-1.5 max-h-36 overflow-y-auto border border-slate-800 p-2 rounded bg-slate-900/50">
+                                    <label className="block text-[11px] font-semibold text-gray-600 uppercase mb-1">Labels/Tags</label>
+                                    <div className="flex flex-col gap-1.5 max-h-36 overflow-y-auto border border-gray-200 p-2 rounded bg-gray-50/50">
                                         {tags.map(tag => {
                                             const isAttached = editingCard.tags?.some(t => t.id === tag.id);
                                             return (
@@ -806,10 +806,10 @@ export default function App() {
                                                             }
                                                             handleUpdateCardDetails(editingCard.id, { tags: newTagIds });
                                                         }}
-                                                        className="rounded text-indigo-600 focus:ring-indigo-500 border-slate-700"
+                                                        className="rounded text-black focus:ring-purple-500 border-gray-200"
                                                     />
                                                     <span
-                                                        className="px-2 py-0.5 rounded text-[10px] font-bold text-white uppercase tracking-wider block flex-1"
+                                                        className="px-2 py-0.5 rounded text-[10px] font-bold text-black uppercase tracking-wider block flex-1"
                                                         style={{ backgroundColor: tag.color }}
                                                     >
                                                         {tag.name}
@@ -820,7 +820,7 @@ export default function App() {
                                     </div>
                                 </div>
 
-                                <div className="pt-4 border-t border-slate-700/50">
+                                <div className="pt-4 border-t border-gray-200/50">
                                     <button
                                         onClick={() => handleDeleteCard(editingCard.id)}
                                         className="w-full bg-rose-600 hover:bg-rose-500 text-white font-semibold py-1.5 rounded text-xs transition-colors"

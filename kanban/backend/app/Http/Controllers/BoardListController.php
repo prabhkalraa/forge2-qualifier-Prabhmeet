@@ -14,7 +14,6 @@ class BoardListController extends Controller
             'name' => 'required|string|max:255',
         ]);
 
-        // Get count of lists to set order
         $order = BoardList::where('board_id', $validated['board_id'])->count();
         $validated['order'] = $order;
 
