@@ -107,7 +107,7 @@ See `openclaw.json` and `.env.example` for configuration details.
 
 Frontend:
 
-https://forge2-xi.vercel.app/
+https://forge2-qualifier-prabhmeet.vercel.app/
 
 Backend API:
 
